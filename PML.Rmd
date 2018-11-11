@@ -1,0 +1,71 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Zhong Qihui"
+date: "11/09/2018"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading packages
+
+```{r loading,echo=TRUE}
+library(caret)
+library(randomForest)
+library(parallel)
+library(doParallel)
+```
+
+# Data pre-processing
+
+Then, I need to import and clean the data.
+
+```{r cleaning,echo=TRUE}
+pml_train <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+isTrainNA <- is.na(pml_train[1,])
+newTrain <- pml_train[,isTrainNA==FALSE] # Deleting blank columns
+isTrainBS <- newTrain[1,]==''
+newTrain <- newTrain[,isTrainBS!=TRUE]
+newTrain <- newTrain[,-c(1:7)] # Deleting the first 7 columns since they are useless
+pml_test <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+isTestNA <- is.na(pml_test[1,])
+newTest <- pml_test[,isTestNA==FALSE] # Deleting blank columns
+isTestBS <- newTest[1,]==''
+newTest <- newTest[,isTestBS!=TRUE]
+newTest <- newTest[,-c(1:7)] # Deleting the first 7 columns since they are useless
+```
+
+# Building the model
+
+I choose to apply random forest algorithm. But before doing that, I should create a partition of my data.
+
+```{r partition, echo=TRUE}
+set.seed(1997)
+inTrain <- createDataPartition(newTrain$classe,p=0.75,list=FALSE)
+Training <- newTrain[inTrain,]; Testing <- newTrain[-inTrain,]
+```
+
+Now I can continue to build my model. I have chosen random forest algorithm, because I think its accuracy is high. Some parameters should be set before modelling so that efficiency could be improved.
+
+```{r randomForest,echo=TRUE}
+ctrl <- trainControl(method = "cv",number = 5,allowParallel=TRUE)
+model <- train(classe ~ ., data = Training, method = "rf", trControl=ctrl,verbose=FALSE)
+predict <- predict(model, newdata = Testing)
+confusionMatrix(Testing$classe, predict)
+plot(model$finalModel)
+```
+
+As we can see from the table. The accuracy is close to 1, which is very high.
+
+# Prediction
+
+Now we can use our model to predict the manner of 20 observations.
+```{r prediction,echo=TRUE}
+predict(model,newdata=newTest)
+```
